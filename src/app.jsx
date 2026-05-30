@@ -31,7 +31,8 @@ function LoginGate() {
   const [busy, setBusy] = useState(false);
   const inputRef = React.useRef(null);
   useEffect(() => { inputRef.current && inputRef.current.focus(); }, [mode]);
-  const needsUrl = !state.appsScriptUrl;
+  const [showUrlField, setShowUrlField] = useState(false);
+  const needsUrl = !state.appsScriptUrl || showUrlField;
 
   function fail(msg) {
     setErr(msg);
@@ -141,8 +142,17 @@ function LoginGate() {
         }}>{busy ? "กำลังตรวจสอบ..." : "เข้าสู่ระบบ"}</button>
 
         <div style={{ marginTop: 12, fontSize: 11, color: "var(--ink-faint)", letterSpacing: 1 }}>
-          {mode === "student" ? "ชื่อจริง = field ที่ 2 ในชื่อเต็ม (เช่น \"นาย ธนพัตณ์ สูตรไชย\" → \"ธนพัตณ์\")" : "รหัสผ่านคุณครูเก็บที่ Apps Script (server)"}
+          {mode === "student" ? "ชื่อจริง = field ที่ 2 ในชื่อเต็ม (เช่น \"นาย พงศกร แสงสุวรรณ\" → \"พงศกร\")" : ""}
         </div>
+
+        {state.appsScriptUrl && (
+          <div style={{ marginTop: 8, fontSize: 10.5, color: "var(--ink-faint)" }}>
+            <a href="#" onClick={(e) => { e.preventDefault(); setShowUrlField((v) => !v); }}
+              style={{ color: "var(--gold)", textDecoration: "none" }}>
+              {showUrlField ? "ซ่อน URL" : ""}
+            </a>
+          </div>
+        )}
 
         <div style={{
           marginTop: 16, padding: "10px 12px", borderRadius: 9,
@@ -150,9 +160,9 @@ function LoginGate() {
           fontSize: 10.5, color: "var(--ink-faint)", textAlign: "left", lineHeight: 1.55,
         }}>
           <b style={{ color: "var(--ink-dim)" }}>ประกาศความเป็นส่วนตัว (PDPA):</b> ระบบเก็บข้อมูลรหัสประจำตัว, ชื่อ-สกุล, ชั้น, บ้าน
-          เพื่อใช้บริหารคะแนนบ้านในกิจกรรมการเรียน · ข้อมูลเข้าถึงได้เฉพาะคุณครูที่มีรหัสผ่าน
-          · นักเรียนเข้าดูเฉพาะข้อมูลของตนเอง · มีบันทึก access log
-          · ขอสำเนาข้อมูลของตนได้ที่หน้า "บัญชีของฉัน" หลัง login
+          เพื่อใช้บริหารคะแนนบ้านในกิจกรรมการเรียน <br /> · ข้อมูลเข้าถึงได้เฉพาะคุณครูที่มีรหัสผ่าน <br />
+          · นักเรียนเข้าดูเฉพาะข้อมูลของตนเอง · มีบันทึก access log <br />
+          · ขอสำเนาข้อมูลของตนได้ที่หน้า "บัญชีของฉัน" หลัง login <br />
           · การ login = ยอมรับการประมวลผลข้อมูลเพื่อวัตถุประสงค์ดังกล่าว
         </div>
       </form>
@@ -188,16 +198,16 @@ function App() {
   const role = session.role;
   const tabs = role === "teacher"
     ? [
-        { id: "board", label: "กระดานคะแนน" },
-        { id: "teacher", label: "แผงคุณครู" },
-        { id: "canva", label: "คลังสไลด์" },
-        { id: "admin", label: "การจัดการ" },
-      ]
+      { id: "board", label: "กระดานคะแนน" },
+      { id: "teacher", label: "แผงคุณครู" },
+      { id: "canva", label: "คลังสไลด์" },
+      { id: "admin", label: "การจัดการ" },
+    ]
     : [
-        { id: "board", label: "กระดานคะแนน" },
-        { id: "canva", label: "คลังสไลด์" },
-        { id: "account", label: "บัญชีของฉัน" },
-      ];
+      { id: "board", label: "กระดานคะแนน" },
+      { id: "canva", label: "คลังสไลด์" },
+      { id: "account", label: "บัญชีของฉัน" },
+    ];
 
   // guard: invalid tab for current role → reset
   if (!tabs.find((t) => t.id === tab)) {
@@ -240,8 +250,10 @@ function App() {
             </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 10,
-            marginLeft: narrow ? "auto" : 0, order: narrow ? 2 : 3 }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10,
+            marginLeft: narrow ? "auto" : 0, order: narrow ? 2 : 3
+          }}>
             <button onClick={logout} style={pillBtn}>ออกจากระบบ</button>
           </div>
 

@@ -5,6 +5,10 @@
   const STORAGE_KEY = "kru4_state_v8";
   const SESSION_KEY = "kru4_session";
 
+  // Hardcoded Apps Script web app URL (ลงท้าย /exec)
+  // teacher override ได้ผ่าน "การจัดการ" → RosterSyncCard
+  const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxdAlm4LK_b99N_4bRlupzN2xCzLbmxkw2tm3vgpR5yaOYiAIMlTOMrhcUpLXo3WAQ0/exec";
+
   const HOUSE_ORDER = ["renovia", "barocca", "impressa", "novara"];
 
   const DEFAULT_HOUSES = [
@@ -20,7 +24,7 @@
       history: [],
       canva: [],
       students: {},        // teacher cache: { [studentId]: { studentId, name, className, seq, houseId } }
-      appsScriptUrl: "",
+      appsScriptUrl: DEFAULT_APPS_SCRIPT_URL,
       lastSync: 0,
       meta: { rev: 0 },
     };
@@ -39,7 +43,7 @@
       base.history = parsed.history || base.history;
       base.canva = parsed.canva || base.canva;
       base.students = parsed.students || {};
-      base.appsScriptUrl = parsed.appsScriptUrl || "";
+      base.appsScriptUrl = parsed.appsScriptUrl || DEFAULT_APPS_SCRIPT_URL;
       base.lastSync = parsed.lastSync || 0;
       base.meta = parsed.meta || base.meta;
       return base;
@@ -74,7 +78,7 @@
         base.history = parsed.history || base.history;
         base.canva = parsed.canva || base.canva;
         base.students = parsed.students || {};
-        base.appsScriptUrl = parsed.appsScriptUrl || "";
+        base.appsScriptUrl = parsed.appsScriptUrl || DEFAULT_APPS_SCRIPT_URL;
         base.lastSync = parsed.lastSync || 0;
         base.meta = parsed.meta || base.meta;
         state = base;
