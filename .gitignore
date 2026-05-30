@@ -1,0 +1,96 @@
+# ---------- Node / npm / pnpm / yarn ----------
+node_modules/
+.pnp
+.pnp.js
+.pnp.cjs
+.npm/
+.yarn/
+.pnpm-store/
+.yarn-integrity
+*.tgz
+
+# ---------- Logs ----------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ---------- Build / cache ----------
+dist/
+dist-ssr/
+build/
+out/
+.vite/
+.cache/
+.parcel-cache/
+.turbo/
+.next/
+.svelte-kit/
+.nuxt/
+*.tsbuildinfo
+
+# ---------- Test / coverage ----------
+coverage/
+.nyc_output/
+*.lcov
+junit.xml
+.jest-cache/
+
+# ---------- Env / secrets ----------
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+service-account.json
+credentials.json
+secrets.json
+.clasprc.json
+.clasp.json
+client_secret*.json
+
+# ---------- Editors / IDE ----------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.idea/
+.history/
+*.swp
+*.swo
+*.sw?
+*.suo
+*.user
+*.userprefs
+*.ntvs*
+*.njsproj
+*.sln
+
+# ---------- OS ----------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.stackdump
+
+# ---------- Local-only / scratch ----------
+*.local
+_devpage.html
+tmp/
+temp/
+.claude/
+
+# ---------- Project-specific ----------
+# User-uploaded Canva covers (runtime artifact, not source)
+# src/uploads/

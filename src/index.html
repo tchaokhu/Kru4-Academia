@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>หอเกียรติยศทั้งสี่ · Kru 4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Cinzel+Decorative:wght@400;700;900&family=Trirong:wght@300;400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-0: #0b0a14;
+    --bg-1: #14101f;
+    --bg-2: #1c1730;
+    --ink: #ece3d1;
+    --ink-dim: #b6ac98;
+    --ink-faint: #7d7565;
+    --gold: #e0bf6e;
+    --gold-bright: #f6dd9b;
+    --gold-deep: #a9853a;
+    --line: rgba(224, 191, 110, 0.22);
+    --line-soft: rgba(224, 191, 110, 0.10);
+    --panel: rgba(28, 23, 48, 0.66);
+    --panel-solid: #161227;
+    --serif: "Trirong", "Cinzel", serif;
+    --display: "Cinzel", "Trirong", serif;
+    --deco: "Cinzel Decorative", "Cinzel", serif;
+    --body: "Sarabun", system-ui, sans-serif;
+    --shadow-lg: 0 30px 80px -30px rgba(0, 0, 0, 0.8);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg-0);
+    color: var(--ink);
+    font-family: var(--body);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(1200px 800px at 18% -10%, rgba(125, 68, 196, 0.18), transparent 60%),
+      radial-gradient(1100px 700px at 100% 0%, rgba(74, 127, 207, 0.14), transparent 55%),
+      radial-gradient(900px 900px at 50% 120%, rgba(192, 40, 63, 0.10), transparent 60%),
+      linear-gradient(180deg, var(--bg-1), var(--bg-0) 60%);
+    background-attachment: fixed;
+  }
+
+  /* faint arcane grid / star texture */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.35), transparent),
+      radial-gradient(1px 1px at 70% 60%, rgba(255,255,255,0.25), transparent),
+      radial-gradient(1px 1px at 40% 80%, rgba(255,255,255,0.20), transparent),
+      radial-gradient(1.5px 1.5px at 85% 20%, rgba(246,221,155,0.30), transparent),
+      radial-gradient(1px 1px at 10% 70%, rgba(246,221,155,0.20), transparent);
+    background-size: 600px 600px, 500px 500px, 700px 700px, 800px 800px, 650px 650px;
+    opacity: 0.5;
+    z-index: 0;
+  }
+
+  #particles {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  #root { position: relative; z-index: 1; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+  ::-webkit-scrollbar-thumb { background: rgba(224,191,110,0.25); border-radius: 6px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(224,191,110,0.4); }
+
+  ::selection { background: rgba(224,191,110,0.3); color: #fff; }
+
+  .gold-text {
+    background: linear-gradient(180deg, var(--gold-bright), var(--gold) 45%, var(--gold-deep));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  button { font-family: var(--body); cursor: pointer; }
+  input, textarea, select { font-family: var(--body); }
+
+  @keyframes floatUp {
+    from { transform: translateY(8px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes glowPulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+  }
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  @keyframes spinSlow { to { transform: rotate(360deg); } }
+  @keyframes pageRise {
+    from { transform: translateY(12px); }
+    to { transform: translateY(0); }
+  }
+  @keyframes rankFlash {
+    0% { box-shadow: 0 0 0 0 rgba(246,221,155,0.0); }
+    30% { box-shadow: 0 0 60px 6px rgba(246,221,155,0.55); }
+    100% { box-shadow: 0 0 0 0 rgba(246,221,155,0.0); }
+  }
+</style>
+</head>
+<body>
+  <canvas id="particles"></canvas>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="store.jsx"></script>
+  <script type="text/babel" src="particles.jsx"></script>
+  <script type="text/babel" src="scoreboard.jsx"></script>
+  <script type="text/babel" src="teacher.jsx"></script>
+  <script type="text/babel" src="canva.jsx"></script>
+  <script type="text/babel" src="account.jsx"></script>
+  <script type="text/babel" src="app.jsx"></script>
+</body>
+</html>
