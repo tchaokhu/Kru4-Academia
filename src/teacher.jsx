@@ -96,7 +96,7 @@ function HouseAwardCard({ house }) {
       />
 
       <div style={{ display: "flex", gap: 8 }}>
-        {[5, 10, 20].map(chip)}
+        {[1, 3, 5].map(chip)}
       </div>
 
       <div style={{ display: "flex", gap: 8 }}>
@@ -282,20 +282,15 @@ function HistoryLog() {
 
 function RosterSyncCard() {
   const state = useStore();
-  const [url, setUrl] = React.useState(state.appsScriptUrl || "");
   const [status, setStatus] = React.useState(null);
   const [busy, setBusy] = React.useState(false);
-  React.useEffect(() => { setUrl(state.appsScriptUrl || ""); }, [state.appsScriptUrl]);
+  const ran = React.useRef(false);
 
-  function saveUrl() {
-    window.Kru4Store.setAppsScriptUrl(url);
-    setStatus({ ok: true, msg: "บันทึก URL แล้ว" });
-  }
   async function doSync() {
+    if (busy) return;
     setBusy(true);
     setStatus(null);
     try {
-      window.Kru4Store.setAppsScriptUrl(url);
       const r = await window.Kru4Store.syncRoster();
       setStatus({ ok: true, msg: `Sync สำเร็จ · ${r.count} คน · ${r.classes} ห้อง` });
     } catch (e) {
@@ -304,6 +299,14 @@ function RosterSyncCard() {
       setBusy(false);
     }
   }
+
+  // auto-sync on mount (once per component lifecycle)
+  React.useEffect(() => {
+    if (ran.current) return;
+    ran.current = true;
+    doSync();
+  }, []);
+
   const last = state.lastSync ? new Date(state.lastSync).toLocaleString("th-TH") : "ยังไม่เคย";
 
   return (
@@ -312,31 +315,19 @@ function RosterSyncCard() {
       background: "var(--panel)", backdropFilter: "blur(6px)",
       border: "1px solid var(--line)", boxShadow: "var(--shadow-lg)",
     }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 10, flexWrap: "wrap" }}>
         <div style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 17 }}>
           <span className="gold-text">รายชื่อนักเรียนจาก Google Sheet</span>
         </div>
         <div style={{ fontSize: 11, color: "var(--ink-faint)" }}>Sync ล่าสุด: {last}</div>
       </div>
-      <p style={{ margin: "0 0 12px", color: "var(--ink-dim)", fontSize: 13 }}>
-        วาง URL ของ Apps Script web app (Deploy → New deployment → Web app) ที่ดึงข้อมูล Tab ขึ้นต้นด้วย "ม.6"
-      </p>
-      <input
-        value={url}
-        onChange={(e) => setUrl(e.target.value)}
-        placeholder="https://script.google.com/macros/s/.../exec"
-        style={{ ...inputStyle, marginBottom: 10 }}
-      />
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button onClick={saveUrl} disabled={busy}
-          style={miniBtn("rgba(86,168,119,.18)", "rgba(86,168,119,.5)")}>บันทึก URL</button>
-        <button onClick={doSync} disabled={busy || !url}
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+        <button onClick={doSync} disabled={busy}
           style={miniBtn("rgba(224,191,110,.22)", "rgba(224,191,110,.55)")}>
-          {busy ? "กำลัง Sync..." : "Sync รายชื่อ"}
+          {busy ? "กำลัง Sync..." : "Sync ซ้ำ"}
         </button>
-        <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 13, color: "var(--ink-dim)", alignSelf: "center" }}>
-          ปัจจุบัน: {Object.keys(state.students).length} คน
+        <span style={{ fontSize: 13, color: "var(--ink-dim)" }}>
+          ปัจจุบัน: <b style={{ color: "var(--gold)" }}>{Object.keys(state.students).length}</b> คน
         </span>
       </div>
       {status && (
@@ -357,6 +348,8 @@ function StudentRosterTable() {
   const list = Object.values(state.students);
   const [filter, setFilter] = React.useState("");
   const [houseFilter, setHouseFilter] = React.useState("all");
+  const w = useWindowWidth();
+  const narrow = w < 760;
 
   if (list.length === 0) {
     return (
@@ -400,16 +393,43 @@ function StudentRosterTable() {
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder="ค้นหา ชื่อ/รหัส/ชั้น"
-          style={{ ...inputStyle, width: 220 }}
+          style={{ ...inputStyle, width: narrow ? "100%" : 220 }}
         />
-        <select value={houseFilter} onChange={(e) => setHouseFilter(e.target.value)} style={{ ...inputStyle, width: 140 }}>
+        <select value={houseFilter} onChange={(e) => setHouseFilter(e.target.value)} style={{ ...inputStyle, width: narrow ? "100%" : 140 }}>
           <option value="all">ทุกบ้าน</option>
           {houses.map((h) => <option key={h.id} value={h.id}>{h.th}</option>)}
         </select>
       </div>
-      <div style={{ maxHeight: 480, overflowY: "auto" }}>
+      <div style={{ maxHeight: narrow ? 560 : 480, overflowY: "auto" }}>
         {filtered.map((s) => {
           const h = houses.find((x) => x.id === s.houseId) || houses[0];
+          if (narrow) {
+            return (
+              <div key={s.studentId} style={{
+                padding: "12px 14px", borderBottom: "1px solid var(--line-soft)",
+                display: "flex", flexDirection: "column", gap: 8,
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 12, color: "var(--ink-faint)" }}>
+                  <span style={{ fontFamily: "var(--display)" }}>{s.studentId}</span>
+                  <span>{s.className}</span>
+                </div>
+                <div style={{ fontSize: 14, color: "var(--ink)" }}>{s.name}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ width: 9, height: 9, borderRadius: "50%", background: h.colors.glow, boxShadow: `0 0 6px ${h.colors.glow}`, flexShrink: 0 }} />
+                  <select
+                    value={s.houseId || ""}
+                    onChange={(e) => {
+                      window.Kru4Store.setStudentHouse(s.studentId, e.target.value)
+                        .catch((err) => alert("เปลี่ยนบ้านไม่สำเร็จ: " + (err.message || err)));
+                    }}
+                    style={{ ...inputStyle, flex: 1, padding: "7px 9px", fontSize: 13 }}
+                  >
+                    {houses.map((hh) => <option key={hh.id} value={hh.id}>{hh.th}</option>)}
+                  </select>
+                </div>
+              </div>
+            );
+          }
           return (
             <div key={s.studentId} style={{
               display: "grid",
@@ -526,11 +546,13 @@ function PasswordChangeCard() {
 
 function TeacherPanel() {
   const state = useStore();
+  const w = useWindowWidth();
+  const narrow = w < 760;
   const [confirmReset, setConfirmReset] = React.useState(false);
   return (
-    <div style={{ maxWidth: 1080, margin: "0 auto", padding: "8px 24px 64px" }}>
-      <div style={{ marginBottom: 22 }}>
-        <h2 style={{ margin: 0, fontFamily: "var(--serif)", fontWeight: 700, fontSize: 26 }}>
+    <div style={{ maxWidth: 1080, margin: "0 auto", padding: narrow ? "4px 16px 56px" : "8px 24px 64px" }}>
+      <div style={{ marginBottom: narrow ? 16 : 22 }}>
+        <h2 style={{ margin: 0, fontFamily: "var(--serif)", fontWeight: 700, fontSize: "clamp(20px, 5vw, 26px)" }}>
           <span className="gold-text">แผงควบคุมของคุณครู</span>
         </h2>
         <p style={{ margin: "6px 0 0", color: "var(--ink-dim)", fontSize: 14 }}>
@@ -539,8 +561,8 @@ function TeacherPanel() {
       </div>
 
       <div style={{
-        display: "grid", gap: 16,
-        gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+        display: "grid", gap: narrow ? 12 : 16,
+        gridTemplateColumns: narrow ? "1fr" : "repeat(auto-fit, minmax(240px, 1fr))",
         marginBottom: 26,
       }}>
         {state.houses.map((h) => <HouseAwardCard key={h.id} house={h} />)}
@@ -575,10 +597,12 @@ function TeacherPanel() {
 }
 
 function AdminPanel() {
+  const w = useWindowWidth();
+  const narrow = w < 760;
   return (
-    <div style={{ maxWidth: 1080, margin: "0 auto", padding: "8px 24px 64px" }}>
-      <div style={{ marginBottom: 22 }}>
-        <h2 style={{ margin: 0, fontFamily: "var(--serif)", fontWeight: 700, fontSize: 26 }}>
+    <div style={{ maxWidth: 1080, margin: "0 auto", padding: narrow ? "4px 16px 56px" : "8px 24px 64px" }}>
+      <div style={{ marginBottom: narrow ? 16 : 22 }}>
+        <h2 style={{ margin: 0, fontFamily: "var(--serif)", fontWeight: 700, fontSize: "clamp(20px, 5vw, 26px)" }}>
           <span className="gold-text">การจัดการระบบ</span>
         </h2>
         <p style={{ margin: "6px 0 0", color: "var(--ink-dim)", fontSize: 14 }}>

@@ -187,13 +187,43 @@ function NavTab({ active, onClick, children }) {
     </button>);
 }
 
+function LoadingOverlay() {
+  const loading = useLoading();
+  if (!loading) return null;
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 100,
+      background: "rgba(5,4,10,0.55)", backdropFilter: "blur(3px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      pointerEvents: "auto",
+    }}>
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 16,
+        padding: "26px 36px", borderRadius: 18,
+        background: "linear-gradient(180deg, #1a1530, #100c1f)",
+        border: "1px solid rgba(224,191,110,.35)",
+        boxShadow: "0 0 60px -10px rgba(224,191,110,.5), var(--shadow-lg)",
+      }}>
+        <div style={{ animation: "spinSlow 2.2s linear infinite", filter: "drop-shadow(0 0 12px rgba(246,221,155,.6))" }}>
+          <Sigil size={56} />
+        </div>
+        <div style={{
+          fontFamily: "var(--display)", letterSpacing: 4, fontSize: 12,
+          color: "var(--gold)", textTransform: "uppercase",
+          animation: "glowPulse 1.4s ease-in-out infinite",
+        }}>กำลังเชื่อมต่อระบบ</div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const session = useSession();
   const [tab, setTab] = useState("board");
   const w = useWindowWidth();
   const narrow = w < 760;
 
-  if (!session) return <LoginGate />;
+  if (!session) return (<><LoginGate /><LoadingOverlay /></>);
 
   const role = session.role;
   const tabs = role === "teacher"
@@ -288,6 +318,7 @@ function App() {
       <footer style={{ textAlign: "center", padding: "20px", color: "var(--ink-faint)", fontSize: 12, borderTop: "1px solid var(--line-soft)" }}>
         Renovia · Barocca · Impressa · Novara — ✦ ขอแสงนำทางสู่บ้านที่ดีที่สุด ✦
       </footer>
+      <LoadingOverlay />
     </div>);
 }
 

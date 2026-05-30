@@ -188,14 +188,16 @@ function AddCanvaForm({ houseTags, tagLabels }) {
 
 function CanvaLibrary({ isTeacher }) {
   const state = useStore();
+  const w = useWindowWidth();
+  const narrow = w < 760;
   const houseTags = { "ส่วนกลาง": "#e0bf6e" };
   const tagLabels = { "ส่วนกลาง": "ส่วนกลาง · ทุกบ้าน" };
   state.houses.forEach((h) => { houseTags[h.name] = h.colors.glow; tagLabels[h.name] = `${h.name} · ${h.th}`; });
 
   return (
-    <div style={{ maxWidth: 1080, margin: "0 auto", padding: "8px 24px 64px" }}>
-      <div style={{ marginBottom: 22 }}>
-        <h2 style={{ margin: 0, fontFamily: "var(--serif)", fontWeight: 700, fontSize: 26 }}>
+    <div style={{ maxWidth: 1080, margin: "0 auto", padding: narrow ? "4px 16px 56px" : "8px 24px 64px" }}>
+      <div style={{ marginBottom: narrow ? 16 : 22 }}>
+        <h2 style={{ margin: 0, fontFamily: "var(--serif)", fontWeight: 700, fontSize: "clamp(20px, 5vw, 26px)" }}>
           <span className="gold-text">คลังคาถาแห่งสไลด์</span>
         </h2>
         <p style={{ margin: "6px 0 0", color: "var(--ink-dim)", fontSize: 14 }}>
@@ -204,8 +206,8 @@ function CanvaLibrary({ isTeacher }) {
       </div>
 
       <div style={{
-        display: "grid", gap: 18,
-        gridTemplateColumns: "repeat(auto-fill, minmax(248px, 1fr))"
+        display: "grid", gap: narrow ? 12 : 18,
+        gridTemplateColumns: narrow ? "1fr" : "repeat(auto-fill, minmax(248px, 1fr))"
       }}>
         {isTeacher && <AddCanvaForm houseTags={houseTags} tagLabels={tagLabels} />}
         {state.canva.map((card) =>

@@ -121,25 +121,39 @@
 
   function normalizeId(v) { return String(v == null ? "" : v).trim(); }
 
+  // ---- global loading state (any /exec POST in flight) ----
+  let loadingCount = 0;
+  const loadingSubs = new Set();
+  function bumpLoading(delta) {
+    loadingCount = Math.max(0, loadingCount + delta);
+    const active = loadingCount > 0;
+    loadingSubs.forEach((fn) => { try { fn(active); } catch (_) {} });
+  }
+
   // ---- API helper ----
   async function apiPost(payload) {
     const url = state.appsScriptUrl;
     if (!url) throw new Error("ยังไม่ได้ตั้ง Apps Script URL");
+    bumpLoading(+1);
     let res;
     try {
-      res = await fetch(url, {
-        method: "POST",
-        body: JSON.stringify(payload),
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        redirect: "follow",
-      });
-    } catch (e) {
-      throw new Error("เชื่อมต่อ Apps Script ไม่ได้");
+      try {
+        res = await fetch(url, {
+          method: "POST",
+          body: JSON.stringify(payload),
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          redirect: "follow",
+        });
+      } catch (e) {
+        throw new Error("เชื่อมต่อ Apps Script ไม่ได้");
+      }
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      let data;
+      try { data = await res.json(); } catch (_) { throw new Error("รูปแบบ response ไม่ถูกต้อง"); }
+      return data;
+    } finally {
+      bumpLoading(-1);
     }
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    let data;
-    try { data = await res.json(); } catch (_) { throw new Error("รูปแบบ response ไม่ถูกต้อง"); }
-    return data;
   }
 
   function errMsg(err) {
@@ -340,9 +354,20 @@
     return s;
   }
 
+  function useLoading() {
+    const [v, setV] = React.useState(loadingCount > 0);
+    React.useEffect(() => {
+      const fn = (active) => setV(active);
+      loadingSubs.add(fn);
+      return () => loadingSubs.delete(fn);
+    }, []);
+    return v;
+  }
+
   window.Kru4Store = Store;
   window.useStore = useStore;
   window.useSession = useSession;
+  window.useLoading = useLoading;
 
   function useWindowWidth() {
     const [w, setW] = React.useState(typeof window !== "undefined" ? window.innerWidth : 1200);

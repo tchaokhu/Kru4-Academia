@@ -256,8 +256,8 @@ function Scoreboard() {
   const refs = useFlip(order + (narrow ? "n" : "w"));
 
   return (
-    <div style={{ maxWidth: 1180, margin: "0 auto", padding: narrow ? "4px 16px 56px" : "8px 24px 64px" }}>
-      <div style={{ textAlign: "center", marginBottom: narrow ? 22 : 30 }}>
+    <div style={{ maxWidth: 1180, margin: "0 auto", padding: narrow ? "4px 16px 56px" : "8px 24px 64px", position: "relative" }}>
+      <div style={{ textAlign: "center", marginBottom: narrow ? 22 : 30, position: "relative", zIndex: 1 }}>
         <div style={{
           fontFamily: "var(--display)", letterSpacing: 6, fontSize: 12,
           color: "var(--gold)", textTransform: "uppercase", marginBottom: 8,
@@ -288,6 +288,39 @@ function Scoreboard() {
             refCb={(el) => (refs.current[h.id] = el)}
           />
         ))}
+        {!narrow && <TeacherPortrait narrow={false} />}
+      </div>
+      {narrow && (
+        <div style={{ display: "flex", justifyContent: "center", marginTop: 20 }}>
+          <TeacherPortrait narrow={true} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TeacherPortrait({ narrow }) {
+  const wrapperStyle = narrow
+    ? { width: "min(220px, 65vw)" }
+    : { flex: "1 1 0", maxWidth: 300, minWidth: 250, alignSelf: "flex-end" };
+  return (
+    <div style={{
+      ...wrapperStyle,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+    }}>
+      <div style={{
+        position: "relative",
+        width: "100%",
+        aspectRatio: "0.4",
+        overflow: "hidden",
+      }}>
+        <img src="assets/teacher_no_bg.png" alt="คุณครู" style={{
+          width: "100%", height: "100%",
+          objectFit: "cover", objectPosition: "50% 18%",
+          display: "block",
+        }} />
       </div>
     </div>
   );
