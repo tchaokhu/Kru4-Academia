@@ -1,0 +1,3 @@
+[build]
+  publish = "src"
+  command = "echo 'static site — no build step'"
