@@ -10,11 +10,17 @@
  *   {action:"setHouse",   token, id, houseId}      → {ok}
  *   {action:"resetAssignments", token}             → {ok}
  *   {action:"myData",     token}                   → {ok, student, exportedAt} (DSAR)
+ *   {action:"getScores",  token}                   → {ok, scores, history}  (any logged-in)
+ *   {action:"addScore",   token, houseId, delta, reason} → {ok, scores, history}  (teacher)
+ *   {action:"undoScore",  token, id}               → {ok, scores, history}  (teacher)
+ *   {action:"resetScores", token}                  → {ok, scores, history}  (teacher)
  *
  * Storage:
  *   Script Properties: TEACHER_PASSWORD, TOKEN_SECRET
  *   Sheet "_houses":   col A = studentId, col B = houseId  (auto-created, hidden)
  *   Sheet "_audit":    [ts, action, who, status, note]      (auto-created, hidden)
+ *   Sheet "_scores":   col A = houseId, col B = score        (auto-created, hidden)
+ *   Sheet "_scorelog": col A = entryId, col B = JSON entry   (auto-created, hidden)
  */
 
 const TAB_PREFIX = "ม.6";
@@ -33,6 +39,9 @@ const ASSIGNMENTS_SHEET = "_houses";
 const AUDIT_SHEET = "_audit";
 const CANVA_SHEET = "_canva";
 const CANVA_MAX = 200;
+const SCORES_SHEET = "_scores";
+const SCORELOG_SHEET = "_scorelog";
+const SCORELOG_MAX = 200;
 
 // ---------- properties / secret ----------
 function getTeacherPassword() {
@@ -127,6 +136,52 @@ function sanitizeCard(src) {
     cover: s(src.cover, 1000),
     tag:   s(src.tag, 100),
   };
+}
+
+// ---------- scores ----------
+function loadScores() {
+  const sh = getOrCreateSheet(SCORES_SHEET);
+  const out = {};
+  HOUSE_IDS.forEach((h) => (out[h] = 0));
+  const last = sh.getLastRow();
+  if (last < 1) return out;
+  const rows = sh.getRange(1, 1, last, 2).getValues();
+  rows.forEach((r) => {
+    const id = String(r[0] == null ? "" : r[0]).trim();
+    const n = Number(r[1]);
+    if (HOUSE_IDS.indexOf(id) >= 0 && isFinite(n)) out[id] = Math.max(0, Math.round(n));
+  });
+  return out;
+}
+function saveScores(map) {
+  const sh = getOrCreateSheet(SCORES_SHEET);
+  sh.clearContents();
+  const entries = HOUSE_IDS.map((h) => [h, Math.max(0, Math.round(Number(map[h]) || 0))]);
+  sh.getRange(1, 1, entries.length, 2).setValues(entries);
+}
+function loadScoreLog() {
+  const sh = getOrCreateSheet(SCORELOG_SHEET);
+  const last = sh.getLastRow();
+  if (last < 1) return [];
+  const rows = sh.getRange(1, 1, last, 2).getValues();
+  const out = [];
+  rows.forEach((r) => {
+    const id = String(r[0] == null ? "" : r[0]).trim();
+    if (!id) return;
+    try {
+      const e = JSON.parse(r[1]);
+      if (e && e.id) out.push(e);
+    } catch (_) {}
+  });
+  out.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  return out;
+}
+function saveScoreLog(entries) {
+  const sh = getOrCreateSheet(SCORELOG_SHEET);
+  sh.clearContents();
+  if (!entries.length) return;
+  const rows = entries.map((e) => [e.id, JSON.stringify(e)]);
+  sh.getRange(1, 1, rows.length, 2).setValues(rows);
 }
 
 // ---------- audit ----------
@@ -305,6 +360,10 @@ function doPost(e) {
     if (action === "listCanva")         return listCanvaAction(body);
     if (action === "addCanva")          return addCanvaAction(body);
     if (action === "removeCanva")       return removeCanvaAction(body);
+    if (action === "getScores")         return getScoresAction(body);
+    if (action === "addScore")          return addScoreAction(body);
+    if (action === "undoScore")         return undoScoreAction(body);
+    if (action === "resetScores")       return resetScoresAction(body);
     return json({ ok: false, error: "unknown-action" });
   } catch (err) {
     audit(action, "", false, "server-error: " + (err && err.message ? err.message : err));
@@ -488,6 +547,74 @@ function removeCanvaAction(body) {
   });
   audit("removeCanva", "teacher", true, id);
   return json({ ok: true, canva: all });
+}
+
+// ---------- score actions ----------
+function getScoresAction(body) {
+  // any logged-in user (teacher or student) may view the scoreboard
+  const payload = verifyToken(body.token);
+  if (!payload) return json({ ok: false, error: "unauthorized" });
+  return json({ ok: true, scores: loadScores(), history: loadScoreLog() });
+}
+
+function addScoreAction(body) {
+  const payload = verifyToken(body.token);
+  if (!payload || payload.role !== "teacher") return json({ ok: false, error: "unauthorized" });
+  const houseId = String(body.houseId || "").trim();
+  const delta = Math.round(Number(body.delta));
+  if (HOUSE_IDS.indexOf(houseId) < 0) return json({ ok: false, error: "bad-house" });
+  if (!isFinite(delta) || delta === 0) return json({ ok: false, error: "invalid" });
+  const reason = String(body.reason == null ? "" : body.reason).trim().slice(0, 200);
+  let scores, history;
+  withLock(function () {
+    scores = loadScores();
+    scores[houseId] = Math.max(0, (scores[houseId] || 0) + delta);
+    saveScores(scores);
+    history = loadScoreLog();
+    history.unshift({
+      id: "e" + Date.now() + Math.floor(Math.random() * 10000),
+      houseId: houseId, delta: delta, reason: reason, ts: Date.now(),
+    });
+    if (history.length > SCORELOG_MAX) history = history.slice(0, SCORELOG_MAX);
+    saveScoreLog(history);
+  });
+  audit("addScore", "teacher", true, houseId + " " + (delta > 0 ? "+" : "") + delta);
+  return json({ ok: true, scores: scores, history: history });
+}
+
+function undoScoreAction(body) {
+  const payload = verifyToken(body.token);
+  if (!payload || payload.role !== "teacher") return json({ ok: false, error: "unauthorized" });
+  const id = String(body.id || "").trim();
+  if (!id) return json({ ok: false, error: "missing" });
+  let scores, history;
+  withLock(function () {
+    history = loadScoreLog();
+    const entry = history.filter(function (e) { return e.id === id; })[0];
+    scores = loadScores();
+    if (entry && HOUSE_IDS.indexOf(entry.houseId) >= 0) {
+      scores[entry.houseId] = Math.max(0, (scores[entry.houseId] || 0) - entry.delta);
+      saveScores(scores);
+      history = history.filter(function (e) { return e.id !== id; });
+      saveScoreLog(history);
+    }
+  });
+  audit("undoScore", "teacher", true, id);
+  return json({ ok: true, scores: scores, history: history });
+}
+
+function resetScoresAction(body) {
+  const payload = verifyToken(body.token);
+  if (!payload || payload.role !== "teacher") return json({ ok: false, error: "unauthorized" });
+  let scores;
+  withLock(function () {
+    scores = {};
+    HOUSE_IDS.forEach(function (h) { scores[h] = 0; });
+    saveScores(scores);
+    saveScoreLog([]);
+  });
+  audit("resetScores", "teacher", true, "");
+  return json({ ok: true, scores: scores, history: [] });
 }
 
 // ---------- dev helpers ----------

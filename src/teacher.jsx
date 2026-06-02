@@ -27,7 +27,9 @@ function HouseAwardCard({ house }) {
 
   function give(delta) {
     if (!delta) return;
-    window.Kru4Store.addScore(house.id, delta, reason.trim() || "ปรับแต้มโดยครู");
+    window.Kru4Store
+      .addScore(house.id, delta, reason.trim() || "ปรับแต้มโดยครู")
+      .catch((e) => alert(e.message || "บันทึกคะแนนไม่สำเร็จ"));
     setReason("");
     setCustom("");
     setPulse((p) => p + 1);
@@ -265,7 +267,7 @@ function HistoryLog() {
                 color: pos ? "#7fd6a0" : "#e8889a",
               }}>{pos ? "+" : ""}{e.delta}</span>
               <button
-                onClick={() => window.Kru4Store.undoEntry(e.id)}
+                onClick={() => window.Kru4Store.undoEntry(e.id).catch((err) => alert(err.message || "ยกเลิกไม่สำเร็จ"))}
                 title="ยกเลิกรายการนี้"
                 style={{
                   border: "1px solid var(--line)", background: "transparent",

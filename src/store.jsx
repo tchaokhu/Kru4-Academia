@@ -121,6 +121,19 @@
 
   function normalizeId(v) { return String(v == null ? "" : v).trim(); }
 
+  // Merge server score payload ({scores:{houseId:n}, history:[...]}) into state.
+  function applyScoreData(data) {
+    const scores = (data && data.scores) || {};
+    state = {
+      ...state,
+      houses: state.houses.map((h) =>
+        scores[h.id] != null ? { ...h, score: Math.max(0, scores[h.id]) } : h
+      ),
+      history: Array.isArray(data && data.history) ? data.history : state.history,
+    };
+    emit(true);
+  }
+
   // ---- global loading state (any /exec POST in flight) ----
   let loadingCount = 0;
   const loadingSubs = new Set();
@@ -131,10 +144,11 @@
   }
 
   // ---- API helper ----
-  async function apiPost(payload) {
+  async function apiPost(payload, opts) {
     const url = state.appsScriptUrl;
     if (!url) throw new Error("ยังไม่ได้ตั้ง Apps Script URL");
-    bumpLoading(+1);
+    const silent = opts && opts.silent;
+    if (!silent) bumpLoading(+1);
     let res;
     try {
       try {
@@ -152,7 +166,7 @@
       try { data = await res.json(); } catch (_) { throw new Error("รูปแบบ response ไม่ถูกต้อง"); }
       return data;
     } finally {
-      bumpLoading(-1);
+      if (!silent) bumpLoading(-1);
     }
   }
 
@@ -183,30 +197,33 @@
     subscribe(fn)  { subs.add(fn); return () => subs.delete(fn); },
     subscribeSession(fn) { sessionSubs.add(fn); return () => sessionSubs.delete(fn); },
 
-    addScore(houseId, delta, reason) {
-      state = {
-        ...state,
-        houses: state.houses.map((h) =>
-          h.id === houseId ? { ...h, score: Math.max(0, h.score + delta) } : h
-        ),
-        history: [
-          { id: "e" + Date.now() + Math.random().toString(36).slice(2, 6), houseId, delta, reason: reason || "", ts: Date.now() },
-          ...state.history,
-        ].slice(0, 200),
-      };
-      emit(true);
+    async loadScores() {
+      const token = getToken();
+      if (!token) return;
+      const data = await apiPost({ action: "getScores", token }, { silent: true });
+      if (data && data.ok) {
+        applyScoreData(data);
+      } else if (data && data.error === "unauthorized") {
+        setSession(null);
+      }
     },
-    undoEntry(entryId) {
-      const entry = state.history.find((e) => e.id === entryId);
-      if (!entry) return;
-      state = {
-        ...state,
-        houses: state.houses.map((h) =>
-          h.id === entry.houseId ? { ...h, score: Math.max(0, h.score - entry.delta) } : h
-        ),
-        history: state.history.filter((e) => e.id !== entryId),
-      };
-      emit(true);
+    async addScore(houseId, delta, reason) {
+      requireTeacher();
+      const data = await apiPost({ action: "addScore", token: session.token, houseId, delta, reason: reason || "" });
+      if (!(data && data.ok)) {
+        if (data && data.error === "unauthorized") setSession(null);
+        throw new Error(errMsg(data && data.error));
+      }
+      applyScoreData(data);
+    },
+    async undoEntry(entryId) {
+      requireTeacher();
+      const data = await apiPost({ action: "undoScore", token: session.token, id: entryId });
+      if (!(data && data.ok)) {
+        if (data && data.error === "unauthorized") setSession(null);
+        throw new Error(errMsg(data && data.error));
+      }
+      applyScoreData(data);
     },
     async loadCanva() {
       const token = getToken();
@@ -253,7 +270,10 @@
       // also wipe server-side house assignments
       try {
         const token = getToken();
-        if (token) await apiPost({ action: "resetAssignments", token });
+        if (token) {
+          await apiPost({ action: "resetAssignments", token });
+          await apiPost({ action: "resetScores", token });
+        }
       } catch (_) {}
       const keepUrl = state.appsScriptUrl;
       state = freshState();
@@ -273,6 +293,7 @@
       if (data && data.ok && data.token) {
         setSession({ role: "teacher", token: data.token });
         try { await Store.loadCanva(); } catch (_) {}
+        try { await Store.loadScores(); } catch (_) {}
         return "teacher";
       }
       throw new Error(errMsg(data && data.error));
@@ -291,6 +312,7 @@
           studentProfile: data.student,
         });
         try { await Store.loadCanva(); } catch (_) {}
+        try { await Store.loadScores(); } catch (_) {}
         return "student";
       }
       throw new Error(errMsg(data && data.error));
@@ -416,8 +438,25 @@
   window.useWindowWidth = useWindowWidth;
   window.KRU4 = { HOUSE_ORDER };
 
-  // Persisted session on page load → pull latest slides from server
+  // Persisted session on page load → pull latest slides + scores from server
   if (session && session.token) {
     Store.loadCanva().catch(() => {});
+    Store.loadScores().catch(() => {});
   }
+
+  // Poll scores so students (and other tabs/devices) see teacher updates.
+  // localStorage/BroadcastChannel only sync within one browser; the server is
+  // the cross-device source of truth.
+  const SCORE_POLL_MS = 12000;
+  setInterval(() => {
+    if (session && session.token && document.visibilityState !== "hidden") {
+      Store.loadScores().catch(() => {});
+    }
+  }, SCORE_POLL_MS);
+  // Refresh immediately when tab regains focus.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && session && session.token) {
+      Store.loadScores().catch(() => {});
+    }
+  });
 })();
