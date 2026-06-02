@@ -117,8 +117,8 @@ function LoginGate() {
 
         {mode === "student" ? (
           <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
-            <input ref={inputRef} type="text" inputMode="numeric" autoComplete="username"
-              value={sid} onChange={(e) => setSid(e.target.value)}
+            <input ref={inputRef} type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="username"
+              value={sid} onChange={(e) => setSid(e.target.value.replace(/\D/g, ""))}
               placeholder="รหัสประจำตัว" style={{ ...inputBase, textAlign: "center", letterSpacing: 2 }} />
             <input type="text" autoComplete="given-name"
               value={firstName} onChange={(e) => setFirstName(e.target.value)}

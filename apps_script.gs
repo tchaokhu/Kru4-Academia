@@ -31,6 +31,8 @@ const RATE_LIMIT_WINDOW_SEC = 15 * 60;
 const LOCK_TIMEOUT_MS = 10000;
 const ASSIGNMENTS_SHEET = "_houses";
 const AUDIT_SHEET = "_audit";
+const CANVA_SHEET = "_canva";
+const CANVA_MAX = 200;
 
 // ---------- properties / secret ----------
 function getTeacherPassword() {
@@ -89,6 +91,42 @@ function saveAssignments(map) {
   const entries = Object.keys(map).map((k) => [k, map[k]]);
   if (entries.length === 0) return;
   sh.getRange(1, 1, entries.length, 2).setValues(entries);
+}
+
+// ---------- canva slides ----------
+function loadCanva() {
+  const sh = getOrCreateSheet(CANVA_SHEET);
+  const last = sh.getLastRow();
+  if (last < 1) return [];
+  const rows = sh.getRange(1, 1, last, 2).getValues();
+  const out = [];
+  rows.forEach((r) => {
+    const id = String(r[0] == null ? "" : r[0]).trim();
+    if (!id) return;
+    try {
+      const card = JSON.parse(r[1]);
+      if (card && card.id) out.push(card);
+    } catch (_) {}
+  });
+  out.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  return out;
+}
+function saveCanvaRows(cards) {
+  const sh = getOrCreateSheet(CANVA_SHEET);
+  sh.clearContents();
+  if (!cards.length) return;
+  const entries = cards.map((c) => [c.id, JSON.stringify(c)]);
+  sh.getRange(1, 1, entries.length, 2).setValues(entries);
+}
+function sanitizeCard(src) {
+  function s(v, max) { return String(v == null ? "" : v).trim().slice(0, max); }
+  return {
+    title: s(src.title, 200),
+    desc:  s(src.desc, 1000),
+    url:   s(src.url, 1000),
+    cover: s(src.cover, 1000),
+    tag:   s(src.tag, 100),
+  };
 }
 
 // ---------- audit ----------
@@ -264,6 +302,9 @@ function doPost(e) {
     if (action === "myData")            return myDataAction(body);
     if (action === "setHouse")          return setHouseAction(body);
     if (action === "resetAssignments")  return resetAssignmentsAction(body);
+    if (action === "listCanva")         return listCanvaAction(body);
+    if (action === "addCanva")          return addCanvaAction(body);
+    if (action === "removeCanva")       return removeCanvaAction(body);
     return json({ ok: false, error: "unknown-action" });
   } catch (err) {
     audit(action, "", false, "server-error: " + (err && err.message ? err.message : err));
@@ -407,6 +448,46 @@ function resetAssignmentsAction(body) {
   withLock(function () { saveAssignments({}); });
   audit("resetAssignments", "teacher", true, "");
   return json({ ok: true });
+}
+
+// ---------- canva actions ----------
+function listCanvaAction(body) {
+  // any logged-in user (teacher or student) may view slides
+  const payload = verifyToken(body.token);
+  if (!payload) return json({ ok: false, error: "unauthorized" });
+  return json({ ok: true, canva: loadCanva() });
+}
+
+function addCanvaAction(body) {
+  const payload = verifyToken(body.token);
+  if (!payload || payload.role !== "teacher") return json({ ok: false, error: "unauthorized" });
+  const card = sanitizeCard(body.card || {});
+  if (!card.title || !card.url) return json({ ok: false, error: "missing" });
+  card.id = "c" + Date.now() + Math.floor(Math.random() * 1000);
+  card.ts = Date.now();
+  let all;
+  withLock(function () {
+    all = loadCanva();
+    all.unshift(card);
+    if (all.length > CANVA_MAX) all = all.slice(0, CANVA_MAX);
+    saveCanvaRows(all);
+  });
+  audit("addCanva", "teacher", true, card.id);
+  return json({ ok: true, card: card, canva: all });
+}
+
+function removeCanvaAction(body) {
+  const payload = verifyToken(body.token);
+  if (!payload || payload.role !== "teacher") return json({ ok: false, error: "unauthorized" });
+  const id = String(body.id || "").trim();
+  if (!id) return json({ ok: false, error: "missing" });
+  let all;
+  withLock(function () {
+    all = loadCanva().filter(function (c) { return c.id !== id; });
+    saveCanvaRows(all);
+  });
+  audit("removeCanva", "teacher", true, id);
+  return json({ ok: true, canva: all });
 }
 
 // ---------- dev helpers ----------

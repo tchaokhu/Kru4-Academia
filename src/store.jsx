@@ -208,12 +208,45 @@
       };
       emit(true);
     },
-    addCanva(card) {
-      state = { ...state, canva: [{ ...card, id: "c" + Date.now(), ts: Date.now() }, ...state.canva] };
+    async loadCanva() {
+      const token = getToken();
+      if (!token) return;
+      const data = await apiPost({ action: "listCanva", token });
+      if (data && data.ok && Array.isArray(data.canva)) {
+        state = { ...state, canva: data.canva };
+        emit(true);
+      } else if (data && data.error === "unauthorized") {
+        setSession(null);
+      }
+    },
+    async addCanva(card) {
+      requireTeacher();
+      const data = await apiPost({ action: "addCanva", token: session.token, card });
+      if (!(data && data.ok)) {
+        if (data && data.error === "unauthorized") setSession(null);
+        throw new Error(errMsg(data && data.error));
+      }
+      state = {
+        ...state,
+        canva: Array.isArray(data.canva)
+          ? data.canva
+          : [data.card, ...state.canva],
+      };
       emit(true);
     },
-    removeCanva(id) {
-      state = { ...state, canva: state.canva.filter((c) => c.id !== id) };
+    async removeCanva(id) {
+      requireTeacher();
+      const data = await apiPost({ action: "removeCanva", token: session.token, id });
+      if (!(data && data.ok)) {
+        if (data && data.error === "unauthorized") setSession(null);
+        throw new Error(errMsg(data && data.error));
+      }
+      state = {
+        ...state,
+        canva: Array.isArray(data.canva)
+          ? data.canva
+          : state.canva.filter((c) => c.id !== id),
+      };
       emit(true);
     },
     async resetAll() {
@@ -239,6 +272,7 @@
       const data = await apiPost({ action: "loginTeacher", password: String(password || "") });
       if (data && data.ok && data.token) {
         setSession({ role: "teacher", token: data.token });
+        try { await Store.loadCanva(); } catch (_) {}
         return "teacher";
       }
       throw new Error(errMsg(data && data.error));
@@ -256,6 +290,7 @@
           token: data.token,
           studentProfile: data.student,
         });
+        try { await Store.loadCanva(); } catch (_) {}
         return "student";
       }
       throw new Error(errMsg(data && data.error));
@@ -380,4 +415,9 @@
   }
   window.useWindowWidth = useWindowWidth;
   window.KRU4 = { HOUSE_ORDER };
+
+  // Persisted session on page load → pull latest slides from server
+  if (session && session.token) {
+    Store.loadCanva().catch(() => {});
+  }
 })();

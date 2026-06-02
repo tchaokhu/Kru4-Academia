@@ -86,7 +86,7 @@ function CanvaCard({ card, isTeacher, houseTags }) {
         {isTeacher && (
         confirm ?
         <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 6, zIndex: 2 }}>
-              <button onClick={() => window.Kru4Store.removeCanva(card.id)}
+              <button onClick={() => window.Kru4Store.removeCanva(card.id).catch((e) => alert(e && e.message ? e.message : "ลบไม่สำเร็จ"))}
           style={{ background: "rgba(192,40,63,.85)", color: "#fff", border: "none", borderRadius: 7, padding: "5px 9px", fontSize: 12 }}>ลบ</button>
               <button onClick={() => setConfirm(false)}
           style={{ background: "rgba(0,0,0,.5)", color: "#fff", border: "1px solid var(--line)", borderRadius: 7, padding: "5px 9px", fontSize: 12 }}>×</button>
@@ -135,7 +135,8 @@ function AddCanvaForm({ houseTags, tagLabels }) {
     if (!f.title.trim() || !f.url.trim()) return;
     let url = f.url.trim();
     if (!/^https?:\/\//.test(url)) url = "https://" + url;
-    window.Kru4Store.addCanva({ ...f, url });
+    window.Kru4Store.addCanva({ ...f, url })
+      .catch((e) => alert(e && e.message ? e.message : "บันทึกสไลด์ไม่สำเร็จ"));
     setF({ title: "", desc: "", url: "", cover: "", tag: "ส่วนกลาง" });
     setOpen(false);
   }
